@@ -4,6 +4,17 @@ Exploring 90+ years of FIFA World Cup history using SQL, Python, and interactive
 
 Built as a learning project to practice SQL, data analysis, and dashboard development -- timed alongside the FIFA World Cup 2026 tournament.
 
+## Progress
+
+**Before** -- initial working dashboard, all sections stacked vertically:
+
+![Before](screenshots/before_v1_dashboard.png)
+
+**After** -- added sidebar navigation, side-by-side layouts, headline metrics, and a consistent color theme:
+
+![After - Overview](screenshots/after_v2_overview.png)
+![After - Rivalries](screenshots/after_v2_rivalries.png)
+
 ## What it does
 
 - Loads historical football match data into a SQLite database
@@ -73,3 +84,4 @@ explore_data.py -- initial data exploration script
 - Add team clustering (playing style similarity) using KMeans
 - Add sentiment analysis on World Cup news/social commentary
 - Patch the 2018/2022 data gap
+
