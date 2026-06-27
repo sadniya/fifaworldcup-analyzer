@@ -15,6 +15,13 @@ Built as a learning project to practice SQL, data analysis, and dashboard develo
 ![After - Overview](screenshots/after_v2_overview.png)
 ![After - Rivalries](screenshots/after_v2_rivalries.png)
 
+**Latest** -- redesigned with a dark theme, top tab navigation, a live Match Outcome Predictor, and KMeans team playing-style clusters:
+
+![Dark theme overview](screenshots/v3_overview_dark.png)
+![Match predictor in action](screenshots/v3_match_predictor.png)
+![Team playing style clusters](screenshots/v3_team_clusters.png)
+
+
 ## What it does
 
 - Loads historical football match data into a SQLite database
@@ -24,6 +31,17 @@ Built as a learning project to practice SQL, data analysis, and dashboard develo
   - Which two teams have faced each other most often in World Cup history?
   - How many matches were played in each tournament year?
 - Visualizes the results in an interactive Streamlit dashboard using Plotly charts
+- Predicts match outcomes using a trained Random Forest classifier
+- Groups teams into playing-style clusters using KMeans
+
+## Machine learning features
+
+**Match Outcome Predictor** -- pick any two teams and a match stage, and a Random Forest classifier trained on 1930-2014 World Cup data predicts the outcome (home win / draw / away win) with a probability breakdown for each result.
+
+**Team Playing Style Clusters** -- KMeans clustering groups all 78 World Cup teams into 4 playing-style categories based on two features: average goals scored per match (attacking strength) and average goals conceded per match (defensive strength). The four clusters that emerge: Attackers (high scoring, leaky defence), Grinders (low scoring, solid defence), Elite (high attack, strong defence), and Developing (low scoring, high concede).
+
+**Known limitation:** both the predictor and the clusters use each team's *entire* historical average (1930-2014), not a time-aware "average up to that point" calculation. This means there is some data leakage -- a small amount of future information technically influences predictions about earlier matches. This is a deliberate simplification for this stage of the project; building leakage-free, time-aware features is listed in the roadmap below.
+
 
 ## Tech stack
 
@@ -79,9 +97,10 @@ explore_data.py -- initial data exploration script
 
 ## Roadmap / next steps
 
-- Migrate from SQLite to PostgreSQL
-- Add a goal prediction model trained on historical data
-- Add team clustering (playing style similarity) using KMeans
-- Add sentiment analysis on World Cup news/social commentary
-- Patch the 2018/2022 data gap
+- [ ] Migrate from SQLite to PostgreSQL
+- [x] Add a goal/outcome prediction model trained on historical data
+- [x] Add team clustering (playing style similarity) using KMeans
+- [ ] Add sentiment analysis on World Cup news/social commentary
+- [ ] Patch the 2018/2022 data gap
+- [ ] Fix data leakage in model features (currently uses each team's full-history average, not time-aware averages -- see "Known limitations" below)
 
