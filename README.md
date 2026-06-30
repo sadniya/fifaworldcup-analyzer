@@ -21,6 +21,11 @@ Built as a learning project to practice SQL, data analysis, and dashboard develo
 ![Match predictor in action](screenshots/v3_match_predictor.png)
 ![Team playing style clusters](screenshots/v3_team_clusters.png)
 
+**NLP Features** -- Added Natural Language to SQL intent parsing and TextBlob Sentiment Analysis:
+
+![Ask the Data - NLP to SQL](screenshots/v4_ask_the_data.png)
+![Match Commentary Sentiment](screenshots/v4_sentiment.png)
+
 
 ## What it does
 
