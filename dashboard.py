@@ -193,14 +193,16 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── 6 navigation tabs ─────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+# ── 8 navigation tabs ─────────────────────────────────────────────────────────
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🏆 Overview",
     "⚽ Top Scorers",
     "📈 Trends",
     "🔥 Rivalries",
     "🤖 Match Predictor",
     "🎯 Team Clusters",
+    "📰 Sentiment",
+    "💬 Ask the Data",
 ])
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -712,3 +714,117 @@ with tab6:
             teams_in = cluster_df[cluster_df["cluster_label"] == label]["team"].sort_values().tolist()
             with st.expander(f"**{label}** — {len(teams_in)} teams"):
                 st.write(", ".join(teams_in))
+    
+
+
+    # ════════════════════════════════════════════════════════════════════════════════
+# TAB 7 — SENTIMENT ANALYSIS
+# ════════════════════════════════════════════════════════════════════════════════
+with tab7:
+    st.markdown("### 📰 Match Commentary Sentiment")
+    st.caption("NLP analysis of iconic World Cup matches using TextBlob. Matches are scored from -1 (Negative) to +1 (Positive).")
+
+    try:
+        sentiment_df = run_query("SELECT * FROM match_commentary")
+        
+        # Sort by polarity (most positive first)
+        sentiment_df = sentiment_df.sort_values(by="polarity", ascending=True)
+
+        col_chart, col_data = st.columns([2, 1])
+
+        with col_chart:
+            # Create a color map based on sentiment
+            color_map = {
+                "Thrilling / Positive": "#10b981", # Green
+                "Negative / Controversial": "#ef4444", # Red
+                "Neutral / Mixed": "#6b7280" # Gray
+            }
+            
+            fig_sent = px.bar(
+                sentiment_df,
+                x="polarity", 
+                y="match",
+                orientation="h",
+                color="sentiment_category",
+                color_discrete_map=color_map,
+                template=PLOTLY_TEMPLATE,
+                labels={"polarity": "Sentiment Score", "match": ""}
+            )
+            fig_sent.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                height=450, margin=dict(l=0, r=20, t=10, b=0),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.06)", color="#8ba3c0"),
+                yaxis=dict(color="#c9d8ee"),
+                legend=dict(title="")
+            )
+            st.plotly_chart(fig_sent, use_container_width=True)
+
+        with col_data:
+            st.markdown("#### The Commentary")
+            # Show the raw text so users can see WHY a match got its score
+            for _, row in sentiment_df.sort_values(by="polarity", ascending=False).iterrows():
+                st.markdown(f"**{row['match']}** ({row['year']})")
+                st.markdown(f"<i style='color:#8ba3c0;'>\"{row['commentary']}\"</i>", unsafe_allow_html=True)
+                st.markdown("---")
+
+    except Exception:
+        st.warning("⚠️ Run `python generate_sentiment.py` in the terminal first to analyze the text.")
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TAB 8 — ASK THE DATA (NATURAL LANGUAGE TO SQL)
+# ════════════════════════════════════════════════════════════════════════════════
+with tab8:
+    st.markdown("### 💬 Ask the Data")
+    st.caption("Ask a question in plain English. The app will parse your intent and translate it into a SQL query.")
+
+    # 1. Get the user's question
+    question = st.text_input("Type your question (e.g., 'Who hosted the most matches?', 'Who are the biggest rivals?', 'How many goals did teams score?')")
+
+    if question:
+        question_lower = question.lower()
+        
+        # 2. Intent Parsing: Look for keywords to figure out what they want
+        if "host" in question_lower or "city" in question_lower:
+            st.info("💡 **Intent Detected:** You are asking about hosts or cities.")
+            
+            # Show them the SQL we are going to run
+            sql = "SELECT City, COUNT(*) as matches_hosted FROM world_cup_matches GROUP BY City ORDER BY matches_hosted DESC LIMIT 10"
+            # st.code(sql, language="sql")
+            
+            # Run it and show the result
+            answer_df = run_query(sql)
+            st.dataframe(answer_df, hide_index=True)
+
+        elif "rival" in question_lower or "against" in question_lower or "face" in question_lower:
+            st.info("💡 **Intent Detected:** You are asking about frequent matchups/rivalries.")
+            sql = """
+            SELECT
+                CASE WHEN [Home Team Name] < [Away Team Name] THEN [Home Team Name] ELSE [Away Team Name] END as team_a,
+                CASE WHEN [Home Team Name] < [Away Team Name] THEN [Away Team Name] ELSE [Home Team Name] END as team_b,
+                COUNT(*) as times_played
+            FROM world_cup_matches
+            GROUP BY team_a, team_b
+            ORDER BY times_played DESC
+            LIMIT 10
+            """
+            # st.code(sql, language="sql")
+            answer_df = run_query(sql)
+            st.dataframe(answer_df, hide_index=True)
+
+        elif "goal" in question_lower or "score" in question_lower or "top" in question_lower:
+            st.info("💡 **Intent Detected:** You are asking about goals or top scoring teams.")
+            sql = """
+            SELECT [Home Team Name] as team, SUM([Home Team Goals]) as total_home_goals
+            FROM world_cup_matches
+            GROUP BY [Home Team Name]
+            ORDER BY total_home_goals DESC
+            LIMIT 10
+            """
+            # st.code(sql, language="sql")
+            answer_df = run_query(sql)
+            st.dataframe(answer_df, hide_index=True)
+            
+        else:
+            # Fallback if we don't understand the question
+            st.warning("I couldn't quite understand that question. Try asking about 'hosts', 'rivals', or 'goals'.")

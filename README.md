@@ -1,4 +1,4 @@
-﻿# FIFA World Cup Analyzer
+# FIFA World Cup Analyzer
 
 Exploring 90+ years of FIFA World Cup history using SQL, Python, and interactive visualizations.
 
@@ -33,8 +33,14 @@ Built as a learning project to practice SQL, data analysis, and dashboard develo
 - Visualizes the results in an interactive Streamlit dashboard using Plotly charts
 - Predicts match outcomes using a trained Random Forest classifier
 - Groups teams into playing-style clusters using KMeans
+- **[NEW]** Analyzes historical match commentary sentiment using TextBlob NLP
+- **[NEW]** Translates plain English questions into SQL queries using an intent parser
 
-## Machine learning features
+## NLP & Machine Learning Features
+
+**Ask the Data (Natural Language to SQL)** -- a rule-based intent parser allows users to type questions in plain English (e.g., "Who hosted the most matches?"). The app parses the text, translates it into the correct SQL query, executes it against the SQLite database, and returns the answer.
+
+**Sentiment Analysis** -- uses the `TextBlob` NLP library to analyze mock historical sports commentary. It scores iconic World Cup moments on a polarity scale from -1.0 (negative/controversial) to +1.0 (thrilling/positive).
 
 **Match Outcome Predictor** -- pick any two teams and a match stage, and a Random Forest classifier trained on 1930-2014 World Cup data predicts the outcome (home win / draw / away win) with a probability breakdown for each result.
 
@@ -66,7 +72,7 @@ Known data limitation: the World Cup matches dataset stops at 2014. It does not 
    cd fifaworldcup-analyzer
 
 2. Install dependencies:
-   pip install pandas streamlit plotly
+   pip install pandas streamlit plotly scikit-learn textblob
 
 3. Download the two datasets linked above from Kaggle, and place them in this structure:
    results.csv/results.csv
@@ -86,6 +92,9 @@ build_database.py -- loads CSVs into a SQLite database (fifa.db)
 sql_queries.py -- standalone exploratory SQL queries (terminal output)
 dashboard.py -- the Streamlit + Plotly dashboard
 explore_data.py -- initial data exploration script
+generate_sentiment.py -- runs TextBlob NLP on match commentary
+train_model.py -- trains the Random Forest classifier
+cluster_teams.py -- runs KMeans clustering
 
 ## What I learned
 
@@ -93,14 +102,19 @@ explore_data.py -- initial data exploration script
 - Loading pandas DataFrames into a SQL database with to_sql()
 - Building an interactive dashboard with Streamlit
 - Creating charts with Plotly Express
-- Handling real-world messy data (missing values, inconsistent team names like Germany vs Germany FR)
+- Handling real-world messy data
+- Training and evaluating a Random Forest classifier
+- Using KMeans clustering for unsupervised learning
+- Building a rule-based Natural Language to SQL intent parser
+- Performing sentiment analysis with TextBlob
 
 ## Roadmap / next steps
 
 - [ ] Migrate from SQLite to PostgreSQL
 - [x] Add a goal/outcome prediction model trained on historical data
 - [x] Add team clustering (playing style similarity) using KMeans
-- [ ] Add sentiment analysis on World Cup news/social commentary
+- [x] Add Natural Language Q&A intent parsing
+- [x] Add sentiment analysis on World Cup news/social commentary
 - [ ] Patch the 2018/2022 data gap
 - [ ] Fix data leakage in model features (currently uses each team's full-history average, not time-aware averages -- see "Known limitations" below)
 
