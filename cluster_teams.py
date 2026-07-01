@@ -28,38 +28,12 @@ from sklearn.preprocessing import StandardScaler
 conn = sqlite3.connect("fifa.db")
 
 try:
-    matches = pd.read_sql_query("SELECT * FROM match_features", conn)
+    team_stats = pd.read_sql_query("SELECT team, avg_goals_scored as avg_scored, avg_goals_conceded as avg_conceded FROM team_stats_final", conn)
 except Exception:
-    print("ERROR: 'match_features' table not found.")
+    print("ERROR: 'team_stats_final' table not found.")
     print("Run: python build_features.py  first.")
     conn.close()
     raise SystemExit(1)
-
-# Compute per-team averages across all their matches (home and away combined)
-# Home appearances
-home_stats = matches[["home_team", "home_avg_scored", "home_avg_conceded"]].rename(
-    columns={
-        "home_team": "team",
-        "home_avg_scored": "avg_scored",
-        "home_avg_conceded": "avg_conceded",
-    }
-)
-
-# Away appearances
-away_stats = matches[["away_team", "away_avg_scored", "away_avg_conceded"]].rename(
-    columns={
-        "away_team": "team",
-        "away_avg_scored": "avg_scored",
-        "away_avg_conceded": "avg_conceded",
-    }
-)
-
-all_appearances = pd.concat([home_stats, away_stats])
-team_stats = (
-    all_appearances.groupby("team")[["avg_scored", "avg_conceded"]]
-    .mean()
-    .reset_index()
-)
 
 print(f"Computing clusters for {len(team_stats)} teams...")
 print(f"\nSample team stats:")

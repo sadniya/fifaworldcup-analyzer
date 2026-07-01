@@ -120,6 +120,6 @@ cluster_teams.py -- runs KMeans clustering
 - [x] Add team clustering (playing style similarity) using KMeans
 - [x] Add Natural Language Q&A intent parsing
 - [x] Add sentiment analysis on World Cup news/social commentary
-- [ ] Patch the 2018/2022 data gap
-- [ ] Fix data leakage in model features (currently uses each team's full-history average, not time-aware averages -- see "Known limitations" below)
+- [x] Patch the 2018/2022 data gap
+- [x] Fix data leakage in model features (currently uses each team's full-history average, not time-aware averages -- see "Known limitations" below)
 

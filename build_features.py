@@ -3,7 +3,7 @@ import sqlite3
 
 conn = sqlite3.connect("fifa.db")
 
-# Step 1: Load all World Cup matches
+# ── Step 1: Load all World Cup matches and sort chronologically ───────────────
 matches = pd.read_sql_query(
     """
     SELECT
@@ -18,95 +18,79 @@ matches = pd.read_sql_query(
     conn,
 )
 
-print(f"Loaded {len(matches)} matches")
+# Drop any matches that haven't happened yet (missing goals) which cause NaN errors
+matches = matches.dropna(subset=['home_goals', 'away_goals'])
 
-# Step 2: Build a "team stats" table -- average goals scored and conceded,
-# using BOTH home and away appearances for each team.
-#
-# NOTE (known simplification, documented honestly):
-# These averages use a team's ENTIRE history, not just matches before each
-# specific prediction point. This is a simplified approach for this stage of
-# the project. A more rigorous version would calculate "average so far, at
-# the time of each match" to avoid any data leakage. This is a planned
-# future upgrade -- see README roadmap.
+matches = matches.sort_values(by="year").reset_index(drop=True)
+print(f"Loaded {len(matches)} matches (including 2018 & 2022)")
 
-# Goals scored: combine home appearances (home_goals) and away appearances (away_goals)
-home_scoring = matches[["home_team", "home_goals"]].rename(
-    columns={"home_team": "team", "home_goals": "goals_scored"}
-)
-away_scoring = matches[["away_team", "away_goals"]].rename(
-    columns={"away_team": "team", "away_goals": "goals_scored"}
-)
-all_scoring = pd.concat([home_scoring, away_scoring])
-avg_scored = all_scoring.groupby("team")["goals_scored"].mean().reset_index()
-avg_scored.columns = ["team", "avg_goals_scored"]
+# ── Step 2: The Leakage Fix (Time-Aware Averages) ─────────────────────────────
+# We calculate a team's stats using ONLY matches that happened BEFORE current_year
+def get_historical_stats(team, current_year):
+    past_matches = matches[
+        (matches['year'] < current_year) & 
+        ((matches['home_team'] == team) | (matches['away_team'] == team))
+    ]
+    
+    # If they are a debutant and have no history, they start with 0
+    if len(past_matches) == 0:
+        return 0.0, 0.0 
+        
+    goals_scored = 0
+    goals_conceded = 0
+    
+    for _, m in past_matches.iterrows():
+        if m['home_team'] == team:
+            goals_scored += m['home_goals']
+            goals_conceded += m['away_goals']
+        else:
+            goals_scored += m['away_goals']
+            goals_conceded += m['home_goals']
+            
+    return goals_scored / len(past_matches), goals_conceded / len(past_matches)
 
-# Goals conceded: when a team is home, they concede away_goals; when away, they concede home_goals
-home_conceding = matches[["home_team", "away_goals"]].rename(
-    columns={"home_team": "team", "away_goals": "goals_conceded"}
-)
-away_conceding = matches[["away_team", "home_goals"]].rename(
-    columns={"away_team": "team", "home_goals": "goals_conceded"}
-)
-all_conceding = pd.concat([home_conceding, away_conceding])
-avg_conceded = all_conceding.groupby("team")["goals_conceded"].mean().reset_index()
-avg_conceded.columns = ["team", "avg_goals_conceded"]
+print("\nComputing time-aware historical features for each match...")
+print("(This prevents data leakage. It takes a few seconds to run!)")
 
-# Combine into one team_stats table
-team_stats = avg_scored.merge(avg_conceded, on="team")
-print(f"\nCalculated stats for {len(team_stats)} teams")
-print(team_stats.sort_values("avg_goals_scored", ascending=False).head(10))
+home_features = matches.apply(lambda row: get_historical_stats(row['home_team'], row['year']), axis=1, result_type="expand")
+away_features = matches.apply(lambda row: get_historical_stats(row['away_team'], row['year']), axis=1, result_type="expand")
 
-# Step 3: Encode tournament stage as a number
-# (models need numbers, not text -- this is a simple manual encoding)
+matches['home_avg_scored'] = home_features[0]
+matches['home_avg_conceded'] = home_features[1]
+matches['away_avg_scored'] = away_features[0]
+matches['away_avg_conceded'] = away_features[1]
+
+# ── Step 3: Encode Stage ──────────────────────────────────────────────────────
 stage_encoding = {
-    "Group 1": 0, "Group 2": 0, "Group 3": 0, "Group 4": 0,
-    "Group 5": 0, "Group 6": 0, "Group A": 0, "Group B": 0,
-    "Group C": 0, "Group D": 0, "Group E": 0, "Group F": 0,
-    "Group G": 0, "Group H": 0,
-    "Round of 16": 1, "Quarterfinals": 2, "Semifinals": 3,
-    "Match for third place": 3, "Final": 4,
-    "First round": 0, "Preliminary round": 0,
+    "Group 1": 0, "Group 2": 0, "Group 3": 0, "Group 4": 0, "Group 5": 0, "Group 6": 0, 
+    "Group A": 0, "Group B": 0, "Group C": 0, "Group D": 0, "Group E": 0, "Group F": 0,
+    "Group G": 0, "Group H": 0, "Round of 16": 1, "Quarterfinals": 2, "Semifinals": 3,
+    "Match for third place": 3, "Final": 4, "First round": 0, "Preliminary round": 0,
+    "Group/Knockout": 0 # Catch-all for the 2018/2022 patch
 }
 matches["stage_encoded"] = matches["stage"].map(stage_encoding).fillna(0)
 
-# Step 4: Attach each team's stats to every match (as the FEATURES for that match)
-matches = matches.merge(
-    team_stats.rename(columns={
-        "team": "home_team",
-        "avg_goals_scored": "home_avg_scored",
-        "avg_goals_conceded": "home_avg_conceded",
-    }),
-    on="home_team",
-    how="left",
-)
-matches = matches.merge(
-    team_stats.rename(columns={
-        "team": "away_team",
-        "avg_goals_scored": "away_avg_scored",
-        "avg_goals_conceded": "away_avg_conceded",
-    }),
-    on="away_team",
-    how="left",
-)
-
-# Drop any rows where we couldn't find stats (shouldn't happen, but safety check)
-before = len(matches)
-matches = matches.dropna(
-    subset=["home_avg_scored", "home_avg_conceded", "away_avg_scored", "away_avg_conceded"]
-)
-print(f"\nDropped {before - len(matches)} rows with missing team stats")
-print(f"Final dataset: {len(matches)} matches ready for modeling")
-
-# Step 5: Save this feature-engineered dataset as a new table in our database
+# ── Step 4: Save time-aware match features for the ML model ───────────────────
 matches.to_sql("match_features", conn, if_exists="replace", index=False)
-print("\nSaved as 'match_features' table in fifa.db")
+print("✅ Saved leakage-free 'match_features' to database")
 
-print("\nSample of final features:")
-print(matches[[
-    "home_team", "away_team", "home_avg_scored", "home_avg_conceded",
-    "away_avg_scored", "away_avg_conceded", "stage_encoded",
-    "home_goals", "away_goals"
-]].head(5))
+# ── Step 5: Save final, global team stats for the Dashboard Predictor ─────────
+# The dashboard needs the absolute latest stats (up to 2022) for future predictions
+print("\nComputing final stats for Dashboard Predictor...")
+all_teams = set(matches['home_team']).union(set(matches['away_team']))
+final_stats = []
+for team in all_teams:
+    # Use year=2030 to ensure we average ALL matches up to 2022
+    scored, conceded = get_historical_stats(team, 2030)
+    final_stats.append({
+        "team": team,
+        "avg_goals_scored": scored,
+        "avg_goals_conceded": conceded
+    })
+
+final_team_stats = pd.DataFrame(final_stats)
+final_team_stats.to_csv("team_stats.csv", index=False)
+final_team_stats.to_sql("team_stats_final", conn, if_exists="replace", index=False)
+print("✅ Saved final 'team_stats.csv' for the dashboard")
 
 conn.close()

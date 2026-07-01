@@ -106,24 +106,4 @@ joblib.dump(model, "model.pkl")
 print("\nModel saved as: model.pkl")
 print("The dashboard will load this file for live predictions.")
 
-# ── Step 8: Save team stats to a separate file for the dashboard dropdown ────
-# The dashboard needs to know which teams exist and their avg stats
-# so users can pick them from a dropdown.
-conn = sqlite3.connect("fifa.db")
-team_stats = pd.read_sql_query(
-    """
-    SELECT
-        home_team as team,
-        AVG(home_avg_scored) as avg_scored,
-        AVG(home_avg_conceded) as avg_conceded
-    FROM match_features
-    GROUP BY home_team
-    ORDER BY home_team
-    """,
-    conn,
-)
-conn.close()
-
-team_stats.to_csv("team_stats.csv", index=False)
-print(f"Team stats saved: team_stats.csv ({len(team_stats)} teams)")
-print("\nAll done. You can now run: python -m streamlit run dashboard.py")
+print("\nAll done. You can now run: python cluster_teams.py")
